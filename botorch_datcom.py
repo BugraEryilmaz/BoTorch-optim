@@ -186,22 +186,11 @@ for i in range(100):
 print("Done!")
 
 # %%
-res = batch.arm.parameters
-out = branin(res)
-print(f'{res} {out} {total}')
+# get the index of minimum value
+idxmin = exp.eval().df['mean'].idxmin()
+# get the arm name and value at the minimum index
+arm_name, optimum_val = exp.eval().df.iloc[idxmin,0], exp.eval().df.iloc[idxmin,2]
+# get the parameters for the minimum output
+optimum_param = exp.arms_by_name[arm_name].parameters
+print(optimum_param, optimum_val)
 
-# %%
-'''
-# %%
-model.get_training_data()[-1].data
-ObservationData(metric_names=['branin'], means=[0.57397513], covariance=[[0.]])
-# %%
-model.get_training_data()[-1].data.means[0]
-0.57397513
-# %%
-model.get_training_data()[-1].features
-ObservationFeatures(parameters={'x1': 9.23301964004494, 'x2': 2.3273370925095795}, trial_index=9)
-# %%
-model.get_training_data()[-1].features.parameters
-{'x1': 9.23301964004494, 'x2': 2.3273370925095795}
-'''

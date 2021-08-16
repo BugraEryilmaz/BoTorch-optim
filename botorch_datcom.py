@@ -1,3 +1,8 @@
+# %% DATCOM env
+import gym
+import datcom_gym_env
+env = gym.make('Datcom-v1')
+
 
 # %%
 from botorch.models.gpytorch import GPyTorchModel
@@ -95,3 +100,17 @@ out = branin(res)
 print(f'{res} {out} {total}')
 
 # %%
+'''
+# %%
+model.get_training_data()[-1].data
+ObservationData(metric_names=['branin'], means=[0.57397513], covariance=[[0.]])
+# %%
+model.get_training_data()[-1].data.means[0]
+0.57397513
+# %%
+model.get_training_data()[-1].features
+ObservationFeatures(parameters={'x1': 9.23301964004494, 'x2': 2.3273370925095795}, trial_index=9)
+# %%
+model.get_training_data()[-1].features.parameters
+{'x1': 9.23301964004494, 'x2': 2.3273370925095795}
+'''

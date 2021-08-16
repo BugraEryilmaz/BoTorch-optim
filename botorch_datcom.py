@@ -43,8 +43,57 @@ def evaluate_param(XLE1, XLE2, CHORD1_1, CHORD1_2, CHORD2_1, CHORD2_2, SSPAN1_2,
     newState, gain, done, info = env.step(action, normalizedState)
     
     return gain
-    
 
+# %%
+def datcom_eval(parameterization, *args):
+    XLE1, XLE2, CHORD1_1, CHORD1_2, CHORD2_1, CHORD2_2, SSPAN1_2, SSPAN2_2 = parameterization["XLE1"], \
+        parameterization["XLE2"], parameterization["CHORD1_1"], parameterization["CHORD1_2"], parameterization["CHORD2_1"], \
+        parameterization["CHORD2_2"], parameterization["SSPAN1_2"], parameterization["SSPAN2_2"]
+    gain = evaluate_param(XLE1, XLE2, CHORD1_1, CHORD1_2, CHORD2_1, CHORD2_2, SSPAN1_2, SSPAN2_2)
+    return {"datcom_res": (gain, 0.0)}
+    
+# %%
+from ax import ParameterType, RangeParameter, SearchSpace
+
+search_space_datcom = SearchSpace(
+    parameters=[
+        RangeParameter(
+            name="XLE1", parameter_type=ParameterType.FLOAT, lower=1.25, upper=1.75
+        ),
+        RangeParameter(
+            name="XLE2", parameter_type=ParameterType.FLOAT, lower=3, upper=3.2
+        ),
+        RangeParameter(
+            name="CHORD1_1", parameter_type=ParameterType.FLOAT, lower=0.1, upper=0.4
+        ),
+        RangeParameter(
+            name="CHORD1_2", parameter_type=ParameterType.FLOAT, lower=0, upper=0.09
+        ),
+        RangeParameter(
+            name="CHORD2_1", parameter_type=ParameterType.FLOAT, lower=0.1, upper=0.4
+        ),
+        RangeParameter(
+            name="CHORD2_2", parameter_type=ParameterType.FLOAT, lower=0, upper=0.25
+        ),
+        RangeParameter(
+            name="SSPAN1_2", parameter_type=ParameterType.FLOAT, lower=0.1, upper=0.3
+        ),
+        RangeParameter(
+            name="SSPAN2_2", parameter_type=ParameterType.FLOAT, lower=0.1, upper=0.3
+        ),
+    ]
+)
+
+# %%
+from ax import SimpleExperiment
+
+datcom_exp = SimpleExperiment(
+    name="test_datcom",
+    search_space=search_space_datcom,
+    evaluation_function=datcom_eval,
+    objective_name="datcom_res",
+    minimize=False,
+)
 
 # %%
 from botorch.models.gpytorch import GPyTorchModel

@@ -15,7 +15,20 @@ python botorch_datcom.py
 ```
 The first section in the python file provides an interface to change the number of simulations run for the optimization. They can be changed.
 
-When the optimizations finish, the last line will be the optimum parameters, its corresponding reward and CL/CD value (with a small change in environment, so it might print None).
+When the optimizations finish, the last lines will be the optimum parameters, its corresponding CL/CD value. An example output can be seen below.
+```
+Parameters: 
+
+{'CHORD1_1': 0.4,
+ 'CHORD1_2': 0.018103836201984122,
+ 'CHORD2_1': 0.2464142702240658,
+ 'CHORD2_2': 0.25,
+ 'SSPAN1_2': 0.22418681935068174,
+ 'SSPAN2_2': 0.3,
+ 'XLE1': 1.25,
+ 'XLE2': 3.073188177155113}
+Best CL/CD: 3.124
+```
 ### BoTorch-Test
 A test function, namely branin function, is used for testing and understanding the botorch package.
 ```
@@ -27,4 +40,7 @@ The optimization problem for the brainin function is global minimization. There 
 (x1 = π, x2 = 2.275)
 (x1 = 9.42478, x2 = 2.475)
 ```
-The expected output of this test code is a coordinate close to either of these 3 points with a value close to the minimum value 0.397887.
+The expected output of this test code is a coordinate close to either of these 3 points with a value close to the minimum value 0.397887. An example output can be seen below.
+```
+{'x1': 9.414160290290102, 'x2': 2.621994548824227} 0.4227447026320858
+```

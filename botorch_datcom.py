@@ -1,6 +1,6 @@
 # %% Hyperparameters
-NUMBER_OF_INIT_POINTS = 5
-NUMBER_OF_ITERATIONS = 100
+NUMBER_OF_INIT_POINTS = 10
+NUMBER_OF_ITERATIONS = 500
 
 # %% DATCOM env
 import gym
@@ -8,6 +8,15 @@ import datcom_gym_env
 env = gym.make('Datcom-v1')
 
 # %% Model definition
+from botorch.models.gpytorch import GPyTorchModel
+from gpytorch.distributions import MultivariateNormal
+from gpytorch.means import ConstantMean
+from gpytorch.models import ExactGP
+from gpytorch.kernels import RBFKernel, ScaleKernel
+from gpytorch.likelihoods import GaussianLikelihood
+from gpytorch.mlls import ExactMarginalLogLikelihood
+from gpytorch.priors import GammaPrior
+
 class SimpleCustomGP(ExactGP, GPyTorchModel):
 
     _num_outputs = 1  # to inform GPyTorchModel API
@@ -37,6 +46,7 @@ def _get_and_fit_simple_custom_gp(Xs, Ys, **kwargs):
 
 # %% DATCOM evaluate    
 # parameters = XLE1, XLE2, CHORD1_1, CHORD1_2, CHORD2_1, CHORD2_2, SSPAN1_2, SSPAN2_2
+import numpy as np
 def evaluate_param(XLE1, XLE2, CHORD1_1, CHORD1_2, CHORD2_1, CHORD2_2, SSPAN1_2, SSPAN2_2):
     defaultXLE1, maxXLE1, minXLE1 = 1.72, 1.75, 1.25
     defaultXLE2, maxXLE2, minXLE2 = 3.2, 3.2, 3.0
@@ -71,18 +81,26 @@ def evaluate_param(XLE1, XLE2, CHORD1_1, CHORD1_2, CHORD2_1, CHORD2_2, SSPAN1_2,
     normalSSPAN2_2 = (defaultSSPAN2_2 - minSSPAN2_2)/(maxSSPAN2_2 - minSSPAN2_2)
     normalizedState = [normalXLE1, normalXLE2, normalCHORD1_1, normalCHORD1_2, normalCHORD2_1, normalCHORD2_2, normalSSPAN1_2, normalSSPAN2_2]
     
+
     # Reset the environment and take the action
     env.reset()
-    newState, gain, done, info = env.step(action, normalizedState)
+    newState, gain, done, info = env.step(np.asarray(action), np.asarray(normalizedState))
     
-    return gain
+    return gain, info["CL_CD"]
 
 def datcom_eval(parameterization, *args):
     XLE1, XLE2, CHORD1_1, CHORD1_2, CHORD2_1, CHORD2_2, SSPAN1_2, SSPAN2_2 = parameterization["XLE1"], \
         parameterization["XLE2"], parameterization["CHORD1_1"], parameterization["CHORD1_2"], parameterization["CHORD2_1"], \
         parameterization["CHORD2_2"], parameterization["SSPAN1_2"], parameterization["SSPAN2_2"]
-    gain = evaluate_param(XLE1, XLE2, CHORD1_1, CHORD1_2, CHORD2_1, CHORD2_2, SSPAN1_2, SSPAN2_2)
+    gain, cl_cd = evaluate_param(XLE1, XLE2, CHORD1_1, CHORD1_2, CHORD2_1, CHORD2_2, SSPAN1_2, SSPAN2_2)
     return {"objective": (gain, 0.0)}
+
+def datcom_eval_with_cl_cd(parameterization, *args):
+    XLE1, XLE2, CHORD1_1, CHORD1_2, CHORD2_1, CHORD2_2, SSPAN1_2, SSPAN2_2 = parameterization["XLE1"], \
+        parameterization["XLE2"], parameterization["CHORD1_1"], parameterization["CHORD1_2"], parameterization["CHORD2_1"], \
+        parameterization["CHORD2_2"], parameterization["SSPAN1_2"], parameterization["SSPAN2_2"]
+    gain, cl_cd = evaluate_param(XLE1, XLE2, CHORD1_1, CHORD1_2, CHORD2_1, CHORD2_2, SSPAN1_2, SSPAN2_2)
+    return {"objective": (gain, 0.0), "CL_CD": cl_cd}
     
 # %%
 from ax import ParameterType, RangeParameter, SearchSpace
@@ -130,28 +148,37 @@ datcom_exp = SimpleExperiment(
 # %% Get initial random points
 from ax.modelbridge import get_sobol
 
-sobol = get_sobol(exp.search_space)
-exp.new_batch_trial(generator_run=sobol.gen(NUMBER_OF_INIT_POINTS))
+sobol = get_sobol(datcom_exp.search_space)
+datcom_exp.new_batch_trial(generator_run=sobol.gen(NUMBER_OF_INIT_POINTS))
 
 # %% Optimization loop & results
 from ax.modelbridge.factory import get_botorch
+import pprint
 
 for i in range(NUMBER_OF_ITERATIONS):
     print(f"Running optimization batch {i+1}/{NUMBER_OF_ITERATIONS}...")
     model = get_botorch(
-        experiment=exp,
-        data=exp.eval(),
-        search_space=exp.search_space,
+        experiment=datcom_exp,
+        data=datcom_exp.eval(),
+        search_space=datcom_exp.search_space,
         model_constructor=_get_and_fit_simple_custom_gp,
     )
-    batch = exp.new_trial(generator_run=model.gen(1))
+    batch = datcom_exp.new_trial(generator_run=model.gen(1))
     
 print("Done!")
 
 # get the index of minimum value
-idxmin = exp.eval().df['mean'].idxmin()
+idxmax = datcom_exp.eval().df['mean'].idxmax()
 # get the arm name and value at the minimum index
-arm_name, optimum_val = exp.eval().df.iloc[idxmin,0], exp.eval().df.iloc[idxmin,2]
+arm_name, optimum_val = datcom_exp.eval().df.iloc[idxmax,0], datcom_exp.eval().df.iloc[idxmax,2]
 # get the parameters for the minimum output
-optimum_param = exp.arms_by_name[arm_name].parameters
-print(optimum_param, optimum_val)
+optimum_param = datcom_exp.arms_by_name[arm_name].parameters
+# get cl/cd
+cl_cd = datcom_eval_with_cl_cd(optimum_param)["CL_CD"]
+print('Parameters: \n')
+pprint.pprint(optimum_param)
+print(f'Best reward: {optimum_val}\nBest CL/CD: {cl_cd}')
+
+
+
+# %%

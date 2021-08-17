@@ -1,3 +1,5 @@
 __pycache__
 *.txt
 .env
+for*.dat
+datcom97.exe

@@ -8,6 +8,14 @@ pip install ax-platform
 pip install numpy
 ```
 ## What's done
+### DATCOM optimizasiton
+The optimization loop used to optimize the DATCOM simulation results. This part requires a python package for DATCOM GYM environment and DATCOM simulation program.
+```
+python botorch_datcom.py
+```
+The first section in the python file provides an interface to change the number of simulations run for the optimization. They can be changed.
+
+When the optimizations finish, the last line will be the optimum parameters, its corresponding reward and CL/CD value (with a small change in environment, so it might print None).
 ### BoTorch-Test
 A test function, namely branin function, is used for testing and understanding the botorch package.
 ```

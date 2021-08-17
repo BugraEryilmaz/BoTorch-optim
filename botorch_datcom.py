@@ -1,6 +1,6 @@
 # %% Hyperparameters
 NUMBER_OF_INIT_POINTS = 10
-NUMBER_OF_ITERATIONS = 500
+NUMBER_OF_ITERATIONS = 10
 
 # %% DATCOM env
 import gym
@@ -86,7 +86,7 @@ def evaluate_param(XLE1, XLE2, CHORD1_1, CHORD1_2, CHORD2_1, CHORD2_2, SSPAN1_2,
     env.reset()
     newState, gain, done, info = env.step(np.asarray(action), np.asarray(normalizedState))
     
-    return gain, info["CL_CD"]
+    return gain, info
 
 def datcom_eval(parameterization, *args):
     XLE1, XLE2, CHORD1_1, CHORD1_2, CHORD2_1, CHORD2_2, SSPAN1_2, SSPAN2_2 = parameterization["XLE1"], \
@@ -100,7 +100,7 @@ def datcom_eval_with_cl_cd(parameterization, *args):
         parameterization["XLE2"], parameterization["CHORD1_1"], parameterization["CHORD1_2"], parameterization["CHORD2_1"], \
         parameterization["CHORD2_2"], parameterization["SSPAN1_2"], parameterization["SSPAN2_2"]
     gain, cl_cd = evaluate_param(XLE1, XLE2, CHORD1_1, CHORD1_2, CHORD2_1, CHORD2_2, SSPAN1_2, SSPAN2_2)
-    return {"objective": (gain, 0.0), "CL_CD": cl_cd}
+    return {"objective": (gain, 0.0), "CL_CD": cl_cd["CL_CD"]}
     
 # %%
 from ax import ParameterType, RangeParameter, SearchSpace
@@ -174,7 +174,10 @@ arm_name, optimum_val = datcom_exp.eval().df.iloc[idxmax,0], datcom_exp.eval().d
 # get the parameters for the minimum output
 optimum_param = datcom_exp.arms_by_name[arm_name].parameters
 # get cl/cd
-cl_cd = datcom_eval_with_cl_cd(optimum_param)["CL_CD"]
+try:
+    cl_cd = datcom_eval_with_cl_cd(optimum_param)["CL_CD"]
+except:
+    cl_cd = None
 print('Parameters: \n')
 pprint.pprint(optimum_param)
 print(f'Best reward: {optimum_val}\nBest CL/CD: {cl_cd}')

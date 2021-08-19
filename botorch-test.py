@@ -1,22 +1,21 @@
 
 # %%
-from botorch.models.gpytorch import GPyTorchModel
-from gpytorch.distributions import MultivariateNormal
-from gpytorch.means import ConstantMean
-from gpytorch.models import ExactGP
-from gpytorch.kernels import RBFKernel, ScaleKernel
-from gpytorch.likelihoods import GaussianLikelihood
-from gpytorch.mlls import ExactMarginalLogLikelihood
+from botorch.models.gpytorch import GPyTorchModel, ModelListGPyTorchModel
+from gpytorch.distributions import MultivariateNormal, MultitaskMultivariateNormal
+from gpytorch.means import ConstantMean, MultitaskMean
+from gpytorch.models import ExactGP, IndependentModelList
+from gpytorch.kernels import RBFKernel, ScaleKernel, MultitaskKernel
+from gpytorch.likelihoods import GaussianLikelihood, MultitaskGaussianLikelihood, LikelihoodList
+from gpytorch.mlls import ExactMarginalLogLikelihood, SumMarginalLogLikelihood
 from gpytorch.priors import GammaPrior
 
 
 class SimpleCustomGP(ExactGP, GPyTorchModel):
 
-    _num_outputs = 2  # to inform GPyTorchModel API
+    _num_outputs = 1  # to inform GPyTorchModel API
     
     def __init__(self, train_X, train_Y):
         # squeeze output dim before passing train_Y to ExactGP
-        print(train_Y.squeeze(-1))
         super().__init__(train_X, train_Y.squeeze(-1), GaussianLikelihood())
         self.mean_module = ConstantMean()
         self.covar_module = ScaleKernel(
@@ -28,15 +27,27 @@ class SimpleCustomGP(ExactGP, GPyTorchModel):
         mean_x = self.mean_module(x)
         covar_x = self.covar_module(x)
         return MultivariateNormal(mean_x, covar_x)
+    
+class MultiOutputGP(IndependentModelList, ModelListGPyTorchModel):
+    def __init__(self, model1, model2):
+        super().__init__(model1, model2)
+        self.model1 = model1
+        self.model2 = model2
+        
 # %%
 from botorch.fit import fit_gpytorch_model
 
 def _get_and_fit_simple_custom_gp(Xs, Ys, **kwargs):
-    print(Ys)
-    model = SimpleCustomGP(Xs[0], Ys[0])
-    mll = ExactMarginalLogLikelihood(model.likelihood, model)
+    model1 = SimpleCustomGP(Xs[0], Ys[0])
+    mll1 = ExactMarginalLogLikelihood(model1.likelihood, model1)
+    model2 = SimpleCustomGP(Xs[0], Ys[1])
+    mll2 = ExactMarginalLogLikelihood(model2.likelihood, model2)
+    model = MultiOutputGP(model1, model2)
+    likelihood = LikelihoodList(model1.likelihood, model2.likelihood)
+    mll = SumMarginalLogLikelihood(likelihood, model)
     fit_gpytorch_model(mll)
     return model
+
 # %%
 import random
 import numpy as np
@@ -44,7 +55,7 @@ def branin(parameterization, *args):
     x1, x2 = parameterization["x1"], parameterization["x2"]
     y = (x2 - 5.1 / (4 * np.pi ** 2) * x1 ** 2 + 5 * x1 / np.pi - 6) ** 2
     y += 10 * (1 - 1 / (8 * np.pi)) * np.cos(x1) + 10
-    return {"branin": (y, 0.0), "CD": (y,0.0)}
+    return {"branin": (y, 0.0), "CD": (y*y,0.0)}
 
 # %%
 from ax import ParameterType, RangeParameter, SearchSpace
@@ -65,9 +76,19 @@ import pandas as pd
 from ax import Metric
 from ax.core.data import Data
 
-CDmetric = Metric("CD")
+class CDmetric_class(Metric):
+    def f(self, x: np.ndarray) -> float:
+        return float(branin(torch.tensor(x))[1])
 
-braninmetric = Metric("branin")
+class Braninmetric_class(Metric):
+    def f(self, x: np.ndarray) -> float:
+        return float(branin(torch.tensor(x))[0])
+
+
+
+CDmetric = CDmetric_class("CD")
+
+braninmetric = Braninmetric_class("branin")
 
 
 
@@ -75,7 +96,7 @@ braninmetric = Metric("branin")
 from ax.core.outcome_constraint import OutcomeConstraint
 from ax.core.types import ComparisonOp
 
-CDconstraint = OutcomeConstraint(CDmetric, op=ComparisonOp.GEQ, bound=0.5, relative=False)
+CDconstraint = OutcomeConstraint(CDmetric, op=ComparisonOp.GEQ, bound=0.25, relative=False)
 
 # %%
 from ax.core.objective import Objective
@@ -85,7 +106,7 @@ opt_config = OptimizationConfig(
         outcome_constraints=[CDconstraint]
     )
 # %%
-from ax import SimpleExperiment
+from ax import SimpleExperiment, Experiment
 
 exp = SimpleExperiment(
     name="test_branin",
@@ -116,10 +137,9 @@ print("Done!")
 
 # %%
 # get the index of minimum value
-idxmin = exp.eval().df['mean'].idxmin()
+idxmin = exp.fetch_data().df['mean'].idxmin()
 # get the arm name and value at the minimum index
-arm_name, optimum_val = exp.eval().df.iloc[idxmin,0], exp.eval().df.iloc[idxmin,2]
+arm_name, optimum_val = exp.fetch_data().df.iloc[idxmin,0], exp.eval().df.iloc[idxmin,2]
 # get the parameters for the minimum output
 optimum_param = exp.arms_by_name[arm_name].parameters
 print(optimum_param, optimum_val)
-

@@ -12,10 +12,11 @@ from gpytorch.priors import GammaPrior
 
 class SimpleCustomGP(ExactGP, GPyTorchModel):
 
-    _num_outputs = 1  # to inform GPyTorchModel API
+    _num_outputs = 2  # to inform GPyTorchModel API
     
     def __init__(self, train_X, train_Y):
         # squeeze output dim before passing train_Y to ExactGP
+        print(train_Y.squeeze(-1))
         super().__init__(train_X, train_Y.squeeze(-1), GaussianLikelihood())
         self.mean_module = ConstantMean()
         self.covar_module = ScaleKernel(
@@ -31,6 +32,7 @@ class SimpleCustomGP(ExactGP, GPyTorchModel):
 from botorch.fit import fit_gpytorch_model
 
 def _get_and_fit_simple_custom_gp(Xs, Ys, **kwargs):
+    print(Ys)
     model = SimpleCustomGP(Xs[0], Ys[0])
     mll = ExactMarginalLogLikelihood(model.likelihood, model)
     fit_gpytorch_model(mll)
@@ -38,14 +40,12 @@ def _get_and_fit_simple_custom_gp(Xs, Ys, **kwargs):
 # %%
 import random
 import numpy as np
-total = 0
 def branin(parameterization, *args):
     x1, x2 = parameterization["x1"], parameterization["x2"]
     y = (x2 - 5.1 / (4 * np.pi ** 2) * x1 ** 2 + 5 * x1 / np.pi - 6) ** 2
     y += 10 * (1 - 1 / (8 * np.pi)) * np.cos(x1) + 10
-    global total
-    total += 1
-    return {"branin": (y, 0.0)}
+    return {"branin": (y, 0.0), "CD": (y,0.0)}
+
 # %%
 from ax import ParameterType, RangeParameter, SearchSpace
 
@@ -59,6 +59,31 @@ search_space = SearchSpace(
         ),
     ]
 )
+
+# %%
+import pandas as pd
+from ax import Metric
+from ax.core.data import Data
+
+CDmetric = Metric("CD")
+
+braninmetric = Metric("branin")
+
+
+
+# %%
+from ax.core.outcome_constraint import OutcomeConstraint
+from ax.core.types import ComparisonOp
+
+CDconstraint = OutcomeConstraint(CDmetric, op=ComparisonOp.GEQ, bound=0.5, relative=False)
+
+# %%
+from ax.core.objective import Objective
+from ax.core.optimization_config import OptimizationConfig
+opt_config = OptimizationConfig(
+        objective=Objective(braninmetric, minimize=True),
+        outcome_constraints=[CDconstraint]
+    )
 # %%
 from ax import SimpleExperiment
 
@@ -68,6 +93,7 @@ exp = SimpleExperiment(
     evaluation_function=branin,
     objective_name="branin",
     minimize=True,
+    outcome_constraints=[CDconstraint]
 )
 # %%
 from ax.modelbridge import get_sobol
@@ -85,8 +111,7 @@ for i in range(20):
         search_space=exp.search_space,
         model_constructor=_get_and_fit_simple_custom_gp,
     )
-    batch = exp.new_trial(generator_run=model.gen(1))
-    
+    batch = exp.new_trial(generator_run=model.gen(1,))
 print("Done!")
 
 # %%

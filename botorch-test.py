@@ -9,6 +9,8 @@ from gpytorch.likelihoods import GaussianLikelihood
 from gpytorch.mlls import ExactMarginalLogLikelihood
 from gpytorch.priors import GammaPrior
 
+import torch
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class SimpleCustomGP(ExactGP, GPyTorchModel):
 
@@ -39,6 +41,11 @@ def _get_and_fit_simple_custom_gp(Xs, Ys, **kwargs):
 import random
 import numpy as np
 total = 0
+
+random.seed(192)
+np.random.seed(192)
+torch.manual_seed(192)
+
 def branin(parameterization, *args):
     x1, x2 = parameterization["x1"], parameterization["x2"]
     y = (x2 - 5.1 / (4 * np.pi ** 2) * x1 ** 2 + 5 * x1 / np.pi - 6) ** 2
@@ -84,6 +91,7 @@ for i in range(20):
         data=exp.eval(),
         search_space=exp.search_space,
         model_constructor=_get_and_fit_simple_custom_gp,
+        device=device,
     )
     batch = exp.new_trial(generator_run=model.gen(1))
     
@@ -97,4 +105,3 @@ arm_name, optimum_val = exp.eval().df.iloc[idxmin,0], exp.eval().df.iloc[idxmin,
 # get the parameters for the minimum output
 optimum_param = exp.arms_by_name[arm_name].parameters
 print(optimum_param, optimum_val)
-

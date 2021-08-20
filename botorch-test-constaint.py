@@ -9,6 +9,8 @@ from gpytorch.likelihoods import GaussianLikelihood, MultitaskGaussianLikelihood
 from gpytorch.mlls import ExactMarginalLogLikelihood, SumMarginalLogLikelihood
 from gpytorch.priors import GammaPrior
 
+import torch
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class SimpleCustomGP(ExactGP, GPyTorchModel):
 
@@ -131,6 +133,7 @@ for i in range(20):
         data=exp.eval(),
         search_space=exp.search_space,
         model_constructor=_get_and_fit_simple_custom_gp,
+        device=device,
     )
     batch = exp.new_trial(generator_run=model.gen(1,))
 print("Done!")

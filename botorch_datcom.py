@@ -54,7 +54,7 @@ import numpy as np
 
 def datcom_eval(parameterization, *args):
     cl, cd, xcp, cl_cd = datcom.step(parameterization)
-    return {"objective": (cl_cd, 0.0), "CD": (cd, 0.0)}
+    return {"objective": (cl_cd, 0.0)}
     
 # %%
 from ax import ParameterType, RangeParameter, SearchSpace
@@ -89,11 +89,6 @@ search_space_datcom = SearchSpace(
 )
 
 # %%
-from ax.core.outcome_constraint import OutcomeConstraint
-from ax.core.types import ComparisonOp
-CDconstraint = OutcomeConstraint("CD", op=ComparisonOp.LEQ, bound=datcom.base_cd, relative=False)
-
-# %%
 from ax import SimpleExperiment
 
 datcom_exp = SimpleExperiment(
@@ -102,7 +97,6 @@ datcom_exp = SimpleExperiment(
     evaluation_function=datcom_eval,
     objective_name="objective",
     minimize=False,
-    outcome_constraints=[CDconstraint]
 )
 
 # %% Get initial random points

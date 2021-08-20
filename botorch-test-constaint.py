@@ -126,8 +126,8 @@ exp.new_batch_trial(generator_run=sobol.gen(5))
 # %%
 from ax.modelbridge.factory import get_botorch
 
-for i in range(20):
-    print(f"Running optimization batch {i+1}/20...")
+for i in range(50):
+    print(f"Running optimization batch {i+1}/50...")
     model = get_botorch(
         experiment=exp,
         data=exp.eval(),

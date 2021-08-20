@@ -53,6 +53,11 @@ def _get_and_fit_simple_custom_gp(Xs, Ys, **kwargs):
 # %%
 import random
 import numpy as np
+
+random.seed(192)
+np.random.seed(192)
+torch.manual_seed(192)
+
 def branin(parameterization, *args):
     x1, x2 = parameterization["x1"], parameterization["x2"]
     y = (x2 - 5.1 / (4 * np.pi ** 2) * x1 ** 2 + 5 * x1 / np.pi - 6) ** 2
@@ -120,6 +125,7 @@ exp = SimpleExperiment(
 )
 # %%
 from ax.modelbridge import get_sobol
+
 
 sobol = get_sobol(exp.search_space)
 exp.new_batch_trial(generator_run=sobol.gen(5))

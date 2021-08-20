@@ -8,6 +8,16 @@ pip install ax-platform
 pip install numpy
 ```
 ## What's done
+### BoTorch-Test-constraint
+A test function, namely branin function, is used for testing multi output models and constraint problems.
+```
+python botorch-test-constaint.py
+```
+The optimization problem for the brainin function is global minimization with a constraint that the square of the output should be larger than 0.25. Since the function has a minimum of 0.39 and it is continuous, the expected value to be found is around 0.5 to satisfy the constraint. An example output can be seen below.
+```
+{'x1': 3.2713186288248473, 'x2': 1.9938765060179522} 0.5117414287575023
+```
+
 ### DATCOM optimizasiton
 The optimization loop used to optimize the DATCOM simulation results. This part requires a python package for DATCOM GYM environment and DATCOM simulation program.
 ```

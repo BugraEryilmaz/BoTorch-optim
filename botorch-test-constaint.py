@@ -136,10 +136,13 @@ for i in range(20):
 print("Done!")
 
 # %%
-# get the index of minimum value
-idxmin = exp.fetch_data().df['mean'].idxmin()
-# get the arm name and value at the minimum index
-arm_name, optimum_val = exp.fetch_data().df.iloc[idxmin,0], exp.eval().df.iloc[idxmin,2]
-# get the parameters for the minimum output
+df = exp.fetch_data().df
+branin_df = df[df['metric_name']=='branin']
+CD_df = df[df['metric_name']=='CD']
+constrain = CD_df['mean'] >= 0.25
+eligible_arms = CD_df[constrain]['arm_name']
+constrained_branin_df = branin_df[branin_df['arm_name'].isin(eligible_arms)]
+idxmin = constrained_branin_df['mean'].idxmin()
+arm_name, optimum_val = df.iloc[idxmin,0], df.iloc[idxmin,2]
 optimum_param = exp.arms_by_name[arm_name].parameters
 print(optimum_param, optimum_val)

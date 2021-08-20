@@ -3,3 +3,4 @@ __pycache__
 .env
 for*.dat
 datcom97.exe
+*.csv

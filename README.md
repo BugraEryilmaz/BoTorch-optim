@@ -29,15 +29,15 @@ When the optimizations finish, the last lines will be the optimum parameters, it
 ```
 Parameters: 
 
-{'CHORD1_1': 0.4,
- 'CHORD1_2': 0.018103836201984122,
- 'CHORD2_1': 0.2464142702240658,
+{'CHORD1_1': 0.2897263827978134,
+ 'CHORD1_2': 0.06396360639938851,
+ 'CHORD2_1': 0.25027315271704553,
  'CHORD2_2': 0.25,
- 'SSPAN1_2': 0.22418681935068174,
+ 'SSPAN1_2': 0.3,
  'SSPAN2_2': 0.3,
- 'XLE1': 1.25,
- 'XLE2': 3.073188177155113}
-Best CL/CD: 3.124
+ 'XLE1': 1.313159746244171,
+ 'XLE2': 3.0131620664460073}
+Best CL/CD: 3.129
 ```
 ### BoTorch-Test
 A test function, namely branin function, is used for testing and understanding the botorch package.

@@ -8,6 +8,32 @@ pip install ax-platform
 pip install numpy
 ```
 ## What's done
+### DATCOM optimization with constraints
+The optimization loop used to optimize the DATCOM simulation results. This part requires a python package for DATCOM GYM environment and DATCOM simulation program.
+```
+python botorch-datcom-constraint.py
+```
+The first section in the python file provides an interface to change the number of simulations run for the optimization. They can be changed. We have used 20 initial points with 100 iterations for this results.
+
+When the optimizations finish, the last lines will be the optimum parameters, its corresponding CL/CD value with CD and XCP values. An example output can be seen below.
+```
+Parameters: 
+
+{'CHORD1_1': 0.4,
+ 'CHORD1_2': 0.0,
+ 'CHORD2_1': 0.24760313891904054,
+ 'CHORD2_2': 0.25,
+ 'SSPAN1_2': 0.23575387674501522,
+ 'SSPAN2_2': 0.23012849856492681,
+ 'XLE1': 1.25,
+ 'XLE2': 3.0}
+Best CL/CD: 3.06
+CD: 0.446
+XCP: 0.58922
+
+```
+The regression results can be seen below. X-axis represents the iteration count and y-axis represents the best CL/CD until that iteration. Blue points are the points that follow the constraints and the others are points that did not satisfy the constraints.
+![regression_graph](constrained_graph.svg)
 ### BoTorch-Test-constraint
 A test function, namely branin function, is used for testing multi output models and constraint problems.
 ```
@@ -23,7 +49,7 @@ The optimization loop used to optimize the DATCOM simulation results. This part 
 ```
 python botorch_datcom.py
 ```
-The first section in the python file provides an interface to change the number of simulations run for the optimization. They can be changed.
+The first section in the python file provides an interface to change the number of simulations run for the optimization. They can be changed. We have used 10 initial points with 50 iterations for this results.
 
 When the optimizations finish, the last lines will be the optimum parameters, its corresponding CL/CD value. An example output can be seen below.
 ```

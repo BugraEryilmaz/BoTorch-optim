@@ -1,6 +1,6 @@
 # %% Hyperparameters
-NUMBER_OF_INIT_POINTS = 50
-NUMBER_OF_ITERATIONS = 200
+NUMBER_OF_INIT_POINTS = 20
+NUMBER_OF_ITERATIONS = 100
 
 # %% DATCOM env
 from my_datcom_env import myDatcomEnv
@@ -14,7 +14,7 @@ print(datcom.base_cd)
 ROUND_FACTOR = 4
 
 import torch
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 # %% Model definition
 from botorch.models.gpytorch import GPyTorchModel, ModelListGPyTorchModel
 from gpytorch.distributions import MultivariateNormal, MultitaskMultivariateNormal
@@ -124,6 +124,9 @@ XCPconstraint2 = OutcomeConstraint(XCPmetric, op=ComparisonOp.LEQ, bound=0.6, re
 
 # %%
 from ax import SimpleExperiment
+random.seed(2)
+np.random.seed(2)
+torch.manual_seed(2)
 
 datcom_exp = SimpleExperiment(
     name="test_datcom",
@@ -144,6 +147,7 @@ datcom_exp.new_batch_trial(generator_run=sobol.gen(NUMBER_OF_INIT_POINTS))
 from ax.modelbridge.factory import get_botorch
 import pprint
 import pandas as pd
+import time
 
 for i in range(NUMBER_OF_ITERATIONS):
     print(f"Running optimization batch {i+1}/{NUMBER_OF_ITERATIONS}...")
@@ -159,7 +163,6 @@ for i in range(NUMBER_OF_ITERATIONS):
 print("Done!")
 # CD<0.453 & 0.53<XCP<0.6 is okey & look for 2.96
 df = datcom_exp.fetch_data().df
-df.to_csv('results2.csv')
 
 objective_df = df[df['metric_name']=='objective']
 objective_df = objective_df.reset_index(drop=True)
@@ -169,28 +172,29 @@ XCP_df = df[df['metric_name']=='XCP']
 XCP_df = XCP_df.reset_index(drop=True)
 
 new_df = objective_df.join(CD_df, lsuffix=' ', rsuffix='   ').join(XCP_df, lsuffix=' ', rsuffix='   ')
-new_df.to_csv('results3.csv')
 
-new_df = pd.concat([objective_df, CD_df, XCP_df], axis=1)
+result = [datcom_exp.arms_by_name[item].parameters for item in new_df['arm_name ']]
+new_df = new_df.join(pd.DataFrame({'parameters': result}))
+
 constrain = CD_df['mean'] >= datcom.base_cd
 constrain2 = XCP_df['mean'] < 0.53
 constrain3 = XCP_df['mean'] > 0.6
 not_eligible_arms = CD_df[constrain]['arm_name'].append(XCP_df[constrain2]['arm_name']).append(XCP_df[constrain3]['arm_name'])
 
-constrained_objective_df = objective_df[~objective_df['arm_name'].isin(not_eligible_arms)]
-idxmin = constrained_objective_df['mean'].idxmin()
+constrained_objective_df = objective_df[~objective_df['arm_name'].isin(not_eligible_arms)].reset_index(drop=True)
+idxmin = constrained_objective_df['mean'].idxmax()
 arm_name, optimum_val = constrained_objective_df.iloc[idxmin,0], constrained_objective_df.iloc[idxmin,2]
 optimum_param = datcom_exp.arms_by_name[arm_name].parameters
 
 CDbest = CD_df[CD_df['arm_name']==arm_name]
 XCPbest = XCP_df[XCP_df['arm_name']==arm_name]
 
+new_df.to_csv(f'results_constrained.csv')
+
 print('Parameters: \n')
 pprint.pprint(optimum_param)
 print(f'Best CL/CD: {optimum_val}')
-print(f'CD: {CDbest}')
-print(f'XCP: {XCPbest}')
-
-
+print(f'CD: {CDbest["mean"].array[0]}')
+print(f'XCP: {XCPbest["mean"].array[0]}')
 
 # %%

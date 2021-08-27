@@ -197,10 +197,13 @@ def read_data(filename):
     if len(blocks) != 0:
         #Retrieve Coeffs name
         names = get_coeffs_name(blocks)
+        
         #Retrieve reference values of Mach NO, Altitude , Sideslip
         [M,A,B,XM] = get_data(blocks)
+        
         #Coefficients "matrix" and AoA values
         alpha,data = get_rawdata(blocks)
+        
         #print(data)
         #print(alpha)
         #Creating the coefficient list without replications
@@ -239,6 +242,7 @@ def read_data(filename):
         lB = len(realB)
         lalpha = len(alpha)
         
+        
         #Checking how many indipendent blocks i have
         cname = names[0][0]
         j=1
@@ -250,20 +254,22 @@ def read_data(filename):
                 break
             j=j+1
         
-            
+        
         #Joining all the coefficients names of the j indipendent blocks
         totalc = []
         for i in range(j):
             totalc = totalc + names[i]
 
         
+        
         #Number of coefficients
         numofc = len(totalc)
+        lTrial = len(blocks)//j
         
         final_data = {}
         #I have to generate <numofc> 4D matrixes (preallocation)
         for i in range(numofc):
-            final_data[totalc[i]]=np.zeros((lalpha,lM,lB,lA))
+            final_data[totalc[i]]=np.zeros((lalpha,lM,lB,lA,lTrial))
 
         # Filling the 4D matrixes with data
         currentBigBlock = np.zeros((lalpha,numofc))
@@ -271,6 +277,7 @@ def read_data(filename):
         iM = 0
         iB = 0
         iA = 0
+        iTrial = 0
         for i in range(0,len(blocks),j):
             
             #Joining the j indipendent blocks in one
@@ -280,10 +287,11 @@ def read_data(filename):
                 n,m = data[k].shape
                 currentBigBlock[:,l:l+m]=data[k]
                 l=l+m
-            #print(currentBigBlock)    
+               
             #Populating the final data matrix
             for cname,iC in zip(totalc,range(numofc)):
-                final_data[cname][:,iM,iB,iA] = currentBigBlock[:,iC]
+                
+                final_data[cname][:,iM,iB,iA,iTrial] = currentBigBlock[:,iC]
             
             #Checking which parameter has changed
             
@@ -295,7 +303,11 @@ def read_data(filename):
                     iB = iB+1;
                 else:
                     iB=0;
-                    iA = iA+1;
+                    if iA < lA-1:
+                        iA = iA+1;
+                    else:
+                        iA = 0
+                        iTrial += 1;
         mdict={'Coeffs':final_data,'State':stateDict}
     else:
         mdict = {}
@@ -352,10 +364,10 @@ class myDatcomEnv():
         
         if bool(mdict):
             
-            self.cl_cd = mdict['Coeffs']["CL_CD"][1][0][0][0]
-            self.xcp = mdict['Coeffs']["X_C_P"][1][0][0][0] * -1 * (0.18/3.69)
-            self.cd = mdict['Coeffs']["CD"][1][0][0][0]
-            self.cl = mdict['Coeffs']["CL"][1][0][0][0]
+            self.cl_cd = mdict['Coeffs']["CL_CD"][1][0][0][0][0]
+            self.xcp = mdict['Coeffs']["X_C_P"][1][0][0][0][0] * -1 * (0.18/3.69)
+            self.cd = mdict['Coeffs']["CD"][1][0][0][0][0]
+            self.cl = mdict['Coeffs']["CL"][1][0][0][0][0]
             self.costs = self.cl_cd
 
         else:
@@ -414,14 +426,55 @@ class myDatcomEnv():
         
         args = parser.parse_args()
         mdict = read_data(args.filename)
-        self.base_cl_cd = mdict['Coeffs']["CL_CD"][1][0][0][0]
-        self.base_xcp = mdict['Coeffs']["X_C_P"][1][0][0][0] * -1 * (0.18/3.69)
-        self.base_cd = mdict['Coeffs']["CD"][1][0][0][0]  
+        self.base_cl_cd = mdict['Coeffs']["CL_CD"][1][0][0][0][0]
+        self.base_xcp = mdict['Coeffs']["X_C_P"][1][0][0][0][0] * -1 * (0.18/3.69)
+        self.base_cd = mdict['Coeffs']["CD"][1][0][0][0][0]  
         self.cl_cd = self.base_cl_cd
         self.xcp = self.base_xcp
         self.cd = self.base_cd
 
         return self.state
+
+    def step_batch(self, batch):
+        self.file_name = "for005.dat"
+
+        if os.path.exists(self.file_name):
+            os.remove(self.file_name)
+        else:
+            print("The file does not exist")
+
+        with open(self.file_name, 'a') as fileOut:
+            for item1 in batch:
+                self.XLE1, self.XLE2, self.CHORD1_1, self.CHORD1_2, self.CHORD2_1, self.CHORD2_2, self.SSPAN1_2, self.SSPAN2_2 = \
+                    item1[0], item1[1], item1[2], item1[3], item1[4], item1[5], item1[6], item1[7]
+                self.state = np.round(self._get_obs(), ROUND_FACTOR)
+
+                for item in self.intro.keys():
+                    print(item,sep=' ',file=fileOut)
+                self.write_block(self.FLTCON,fileOut)
+                self.write_block(self.REFQ,fileOut)
+                self.write_block(self.AXIBOD,fileOut)
+                self.write_block(self.FINSET1,fileOut)
+                self.write_block(self.FINSET2,fileOut)
+                self.write_block(self.DEFLCT,fileOut)
+            
+                print(" ",file=fileOut ) 
+                for item in self.finish.keys():
+                    print(item,sep=' ',file=fileOut)
+                
+        
+        if os.path.exists('for006.dat'):
+            os.remove('for006.dat')
+
+        while not os.path.exists('for006.dat'):
+            s = subprocess.run('wine datcom97.exe',shell=True)
+
+        mdict = read_data("for006.dat")
+        cl_cd = mdict['Coeffs']["CL_CD"][1][0][0][0]
+        xcp = mdict['Coeffs']["X_C_P"][1][0][0][0] * -1 * (0.18/3.69)
+        cd = mdict['Coeffs']["CD"][1][0][0][0]  
+
+        return cl_cd, xcp, cd
 
     def _get_obs(self):
 
@@ -563,3 +616,5 @@ class myDatcomEnv():
             print(" ",file=fileOut ) 
             for item in self.finish.keys():
                 print(item,sep=' ',file=fileOut)
+
+

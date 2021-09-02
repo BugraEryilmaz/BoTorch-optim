@@ -4,3 +4,4 @@ __pycache__
 for*.dat
 datcom97.exe
 *.csv
+model*

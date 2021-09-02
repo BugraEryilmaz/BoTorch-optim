@@ -12,7 +12,7 @@ datcom.reset()
 ROUND_FACTOR = 4
 
 import torch
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 # %% Model definition
 from botorch.models.gpytorch import GPyTorchModel
 from gpytorch.distributions import MultivariateNormal
@@ -22,6 +22,7 @@ from gpytorch.kernels import RBFKernel, ScaleKernel
 from gpytorch.likelihoods import GaussianLikelihood
 from gpytorch.mlls import ExactMarginalLogLikelihood
 from gpytorch.priors import GammaPrior
+import pandas as pd
 
 class SimpleCustomGP(ExactGP, GPyTorchModel):
 
@@ -131,6 +132,28 @@ for i in range(NUMBER_OF_ITERATIONS):
     
 print("Done!")
 
+# CD<0.453 & 0.53<XCP<0.6 is okey & look for 2.96
+df = datcom_exp.fetch_data().df
+
+objective_df = df[df['metric_name']=='objective']
+objective_df = objective_df.reset_index(drop=True)
+
+new_df = objective_df
+
+result = [datcom_exp.arms_by_name[item].parameters for item in new_df['arm_name']]
+new_df = new_df.join(pd.DataFrame({'parameters': result}))
+
+constrained_objective_df = objective_df
+idxmin = constrained_objective_df['mean'].idxmax()
+arm_name, optimum_val = constrained_objective_df.iloc[idxmin,0], constrained_objective_df.iloc[idxmin,2]
+optimum_param = datcom_exp.arms_by_name[arm_name].parameters
+
+new_df.to_csv(f'results_new.csv')
+
+print('Parameters: \n')
+pprint.pprint(optimum_param)
+print(f'Best CL/CD: {optimum_val}')
+"""
 # get the index of minimum value
 idxmax = datcom_exp.eval().df['mean'].idxmax()
 # get the arm name and value at the minimum index
@@ -141,7 +164,7 @@ optimum_param = datcom_exp.arms_by_name[arm_name].parameters
 print('Parameters: \n')
 pprint.pprint(optimum_param)
 print(f'Best CL/CD: {optimum_val}')
-
+"""
 
 
 # %%

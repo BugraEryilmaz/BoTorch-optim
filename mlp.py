@@ -16,9 +16,9 @@ gaussian train batch = 8998
 gaussian test batch = 94
 """
 
-reg = [0, 1e-7, 1e-6, 1e-5, 1e-4]
+reg = [0, 1e-7, 1e-6] #, 1e-5, 1e-4]
 layers = [[100,50,20,10],[100,50,20,10,10],[100,50,20,10,10,10]]
-dataset_loc1 = ["uniform", "gaussian"]
+dataset_loc1 = ["uniform"]
 
 for regularization in reg:
     for layer_conf in layers:
@@ -27,7 +27,7 @@ for regularization in reg:
             normalize = False
             lr = 0.001
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-            dataset_loc = "dataset_" + loc1 + ".csv"
+            dataset_loc = "datasets/dataset_" + loc1 + ".csv"
             data_fields = ["XLE1", "XLE2", "CHORD1_1", "CHORD1_2", "CHORD2_1", "CHORD2_2", "SSPAN1_2", "SSPAN2_2"]
             result_fields = ["CL_CD","CD","XCP"]
             train_batchsize = 32

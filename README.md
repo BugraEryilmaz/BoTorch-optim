@@ -8,6 +8,27 @@ pip install ax-platform
 pip install numpy
 ```
 ## What's done
+### Dataset Creation for DNN enhanced BO
+We have considered 2 methods to create a dataset for training the neural network. One of the methods is grid size sampling of the search space. The other method is gaussian sampling. We have created datasets using both methods. The code for creating them can be seen below.
+```
+For gaussian dataset generation:
+    python datcom-dataset-creation.py
+    
+For uniform dataset generation:
+    python datcom-dataset-creation-uniform.py
+
+For combining the results and see the histograms:
+    python histogram.py
+```
+The CL_CD distributions of these datasets can be seen below.
+
+Gaussian distribution result:
+
+![Gaussian distribution result](images/hist_gaussian.svg)
+
+Uniform distribution result:
+
+![Uniform distribution result](images/hist_uniform.svg)
 ### DATCOM optimization with constraints
 The optimization loop used to optimize the DATCOM simulation results. This part requires a python package for DATCOM GYM environment and DATCOM simulation program.
 ```
@@ -33,7 +54,7 @@ XCP: 0.58922
 
 ```
 The regression results can be seen below. X-axis represents the iteration count and y-axis represents the best CL/CD until that iteration. Blue points are the points that follow the constraints and the others are points that did not satisfy the constraints.
-![regression_graph](constrained_graph.svg)
+![regression_graph](images/constrained_graph.svg)
 ### BoTorch-Test-constraint
 A test function, namely branin function, is used for testing multi output models and constraint problems.
 ```
@@ -65,6 +86,8 @@ Parameters:
  'XLE2': 3.0131620664460073}
 Best CL/CD: 3.129
 ```
+Results can be seen below.X-axis represents the iteration count and y-axis represents the best CL/CD until that iteration.
+![regression_graph](images/non_constrained_graph.svg)
 ### BoTorch-Test
 A test function, namely branin function, is used for testing and understanding the botorch package.
 ```

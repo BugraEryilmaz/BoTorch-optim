@@ -51,6 +51,7 @@ class MultiOutputGP(IndependentModelList, ModelListGPyTorchModel):
         self.model3 = model3
 # %% Fit the model
 from botorch.fit import fit_gpytorch_model
+from botorch.optim.fit import fit_gpytorch_torch
 
 def _get_and_fit_simple_custom_gp(Xs, Ys, **kwargs):
     model1 = SimpleCustomGP(Xs[0], Ys[0])
@@ -59,7 +60,7 @@ def _get_and_fit_simple_custom_gp(Xs, Ys, **kwargs):
     model = MultiOutputGP(model1, model2, model3)
     likelihood = LikelihoodList(model1.likelihood, model2.likelihood, model3.likelihood)
     mll = SumMarginalLogLikelihood(likelihood, model)
-    fit_gpytorch_model(mll)
+    fit_gpytorch_model(mll, optimizer=fit_gpytorch_torch)
     return model
 
 # %% DATCOM evaluate    
@@ -124,9 +125,6 @@ XCPconstraint2 = OutcomeConstraint(XCPmetric, op=ComparisonOp.LEQ, bound=0.6, re
 
 # %%
 from ax import SimpleExperiment
-random.seed(2)
-np.random.seed(2)
-torch.manual_seed(2)
 
 datcom_exp = SimpleExperiment(
     name="test_datcom",
@@ -157,6 +155,7 @@ for i in range(NUMBER_OF_ITERATIONS):
         search_space=datcom_exp.search_space,
         model_constructor=_get_and_fit_simple_custom_gp,
         device=device,
+        transforms=[],
     )
     batch = datcom_exp.new_trial(generator_run=model.gen(1))
     

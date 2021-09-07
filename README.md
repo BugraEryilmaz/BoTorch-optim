@@ -8,6 +8,25 @@ pip install ax-platform
 pip install numpy
 ```
 ## What's done
+### Using DNN enhanced BO with CFD like simulation
+The best DNN model is implemented to BO. The regression results can be seen below. X-axis represents the iteration count and y-axis represents the best CL/CD until that iteration. Blue points are the points that follow the constraints and the others are points that did not satisfy the constraints.
+![dnn bo regression](images/transfer_dnnbo_graph.svg)
+For comparison the same regression without DNN can be seen below. 
+![bo regression](images/transfer_graph.svg)
+### DNN training
+A DNN is trained with both datasets, several layer configuration, and several regularization coefficient. The search space can be seen below.
+```
+regularization parameters = 0, 1e-7, 1e-6, 1e-5, 1e-4
+layers =    [100,50,20,10],
+            [100,50,20,10,10],
+            [100,50,20,10,10,10]
+dataset =   uniform, gaussian
+```
+The best model was regularization=0, layers=[100,50,20,10,10], dataset=uniform. \
+It achieved **2.606e-3** mean squared error(MSE) in the first batch, and **1.224e-5** MSE at best. Its training vs test plot can be seen below. The blue line represents the test error, and the red line represents the training error.
+![training vs test plot](images/dnn_uniform_test_vs_valid_new.png)
+In the comparison, the uniform dataset performed better. The best MSE of gaussian dataset was **3.760e-5**. Whereas, the best MSE of uniform dataset was **1.224e-5**. A comparison plot can be seen below. The blue line represents uniform dataset model, and the red line represents gaussian dataset model.
+![uniform vs gaussian plot](images/dnn_uniform_uniform_vs_gaussian_new.png)
 ### Dataset Creation for DNN enhanced BO
 We have considered 2 methods to create a dataset for training the neural network. One of the methods is grid size sampling of the search space. The other method is gaussian sampling. We have created datasets using both methods. The code for creating them can be seen below.
 ```

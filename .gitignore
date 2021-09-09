@@ -6,3 +6,4 @@ datcom97.exe
 *.csv
 model*
 mlp2.py
+*lock*

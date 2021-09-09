@@ -1,9 +1,6 @@
 # %% Hyperparameters
 NUMBER_OF_INIT_POINTS = 20
 NUMBER_OF_ITERATIONS = 100
-"""
-=IF(AND(I2+S2<0.479,T2+N2<0.6,N2+T2>0.53),R2+D2,"")
-"""
 # %% Variables
 import numpy as np
 import torch
@@ -22,8 +19,8 @@ ROUND_FACTOR = 4
 
 import torch
 #device = torch.device('cpu')
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
+device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
+MEANFN = "constant"
 for MATERNKERN in [True, False]:
     for EI in [True, False]:
         pred_cl_cd = []
@@ -36,7 +33,7 @@ for MATERNKERN in [True, False]:
         # %% Model definition
         from botorch.models.gpytorch import GPyTorchModel, ModelListGPyTorchModel
         from gpytorch.distributions import MultivariateNormal, MultitaskMultivariateNormal
-        from gpytorch.means import ConstantMean, MultitaskMean
+        from gpytorch.means import ConstantMean, MultitaskMean, ZeroMean
         from gpytorch.models import ExactGP, IndependentModelList
         from gpytorch.kernels import RBFKernel, ScaleKernel, MultitaskKernel, MaternKernel
         from gpytorch.likelihoods import GaussianLikelihood, MultitaskGaussianLikelihood, LikelihoodList
@@ -50,7 +47,10 @@ for MATERNKERN in [True, False]:
             def __init__(self, train_X, train_Y):
                 # squeeze output dim before passing train_Y to ExactGP
                 super().__init__(train_X, train_Y.squeeze(-1), GaussianLikelihood())
-                self.mean_module = ConstantMean()
+                if MEANFN == "zero":
+                    self.mean_module = ZeroMean()
+                else:
+                    self.mean_module = ConstantMean()
                 if MATERNKERN:
                     self.covar_module = ScaleKernel(
                         base_kernel=MaternKernel(ard_num_dims=train_X.shape[-1]),
@@ -91,7 +91,7 @@ for MATERNKERN in [True, False]:
         import argparse
 
         parser = argparse.ArgumentParser(description='Parse the DATCOM output file')
-        parser.add_argument('model_loc',nargs='?',help='''The location of the model to be used. Default: "models/model_0_[100, 50, 20, 10, 10]_uniform.pt"''',default='models/model_0_[100, 50, 20, 10, 10]_uniform.pt')         
+        parser.add_argument('model_loc',nargs='?',help='''The location of the model to be used. Default: "model_all_uniform.pt"''',default='model_all_uniform.pt')         
 
         args = parser.parse_args()
         #get model location: args.model_loc
@@ -102,7 +102,7 @@ for MATERNKERN in [True, False]:
         from torch.nn.init import xavier_uniform_, calculate_gain
         import torch.nn.functional as F
 
-        layer_conf = [int(i) for i in args.model_loc.split('_')[2][1:-1].split(', ')]
+        layer_conf = [100, 50, 20, 10, 10]
 
         class MLP(Module):
             # define model elements
@@ -160,6 +160,7 @@ for MATERNKERN in [True, False]:
                 print("VALID!")
                 if EI:
                     best_point = torch.tensor(cl_cd)
+            
             return {"objective": (ret_cl_cd, 0.0), "CD": (ret_cd, 0.0), "XCP": (ret_xcp, 0.0)}
         # %% Definiton of acqf function
         from botorch.acquisition.objective import IdentityMCObjective, MCAcquisitionObjective
@@ -503,7 +504,7 @@ for MATERNKERN in [True, False]:
             constrain3 = XCP_df['mean']+new_df['pred_xcp'] > 0.6
             not_eligible_arms = CD_df[constrain]['arm_name'].append(XCP_df[constrain2]['arm_name']).append(XCP_df[constrain3]['arm_name'])
 
-            new_df.to_csv(f'results_constrained_dnn_{"matern" if MATERNKERN else "RBF"}_{seed}_{"EI" if EI else "UCB"}.csv')
+            new_df.to_csv(f'results_constrained_transfer_dnn_{"matern" if MATERNKERN else "RBF"}_{seed}_{MEANFN}_{"EI" if EI else "UCB"}.csv')
             constrained_objective_df = objective_df[~objective_df['arm_name'].isin(not_eligible_arms)].reset_index(drop=True)
             constrained_new_df = new_df[~new_df["arm_name "].isin(not_eligible_arms)].reset_index(drop=True)
             cl_cd_series = constrained_objective_df['mean']+constrained_new_df['pred_cl_cd']

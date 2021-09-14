@@ -374,8 +374,8 @@ class myDatcomEnv():
         else:
             self.costs = self.reward_fail
 
-        print("STEP REWARD : {}".format(self.costs))
-        print("CL/CD : {}".format(self.cl_cd))
+        # print("STEP REWARD : {}".format(self.costs))
+        # print("CL/CD : {}".format(self.cl_cd))
 
         return self.cl, self.cd, self.xcp, self.cl_cd
 

@@ -26,4 +26,4 @@ for i in np.linspace(3.1-bin_count*bin_size, 3.1-bin_size, bin_count):
 
 # %%
 new_dataset = pd.concat(dfs, ignore_index=True)
-new_dataset.to_csv(f'{location}_downsampled_{bin_size:.1f}binsize.csv')
+new_dataset.to_csv(f'{location}_downsampled_{bin_size:.1f}binsize.csv', index=False)

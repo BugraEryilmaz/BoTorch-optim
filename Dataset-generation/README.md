@@ -11,6 +11,6 @@ The created datasets can be found in [this link.](https://drive.google.com/drive
 ## grid size 6 uniform generated dataset downsampled
 ![uniform6 downsample](datasets6/hist_0.2bin_downsampled.svg)
 ## grid size 7 uniform generated dataset
-![uniform7](datasets7/hist_uniform.svg) will be added soon.
+![uniform7](datasets7/hist_uniform.svg)
 ## grid size 7 uniform generated dataset downsampled
-![uniform7 downsample](datasets7/hist_0.2bin_downsampled.svg) will be added soon.
+![uniform7 downsample](datasets7/hist_uniform_downsampled.png)

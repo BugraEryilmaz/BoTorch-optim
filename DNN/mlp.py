@@ -31,9 +31,9 @@ dataset_loc1 = args.dataset_loc1
 
 best_losses = {}
 try:
-    for regularization in reg:
-        for layer_conf in layers:
-            for loc1 in dataset_loc1:
+    for loc1 in dataset_loc1:
+        for regularization in reg:
+            for layer_conf in layers:
                 print(f'{regularization}_{layer_conf}_{loc1}')
                 n_EPOCHS = 300
                 normalize = False

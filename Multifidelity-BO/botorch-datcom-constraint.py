@@ -4,10 +4,10 @@ from argparse import Namespace
 from ax.models.torch.botorch_defaults import get_NEI
 
 
-SMOKE_TEST = True
+SMOKE_TEST = False
 
 # %% Hyperparameters
-NUMBER_OF_ITERATIONS = 300 if not SMOKE_TEST else 2
+NUMBER_OF_ITERATIONS = 150 if not SMOKE_TEST else 1
 
 
 if not SMOKE_TEST:
@@ -30,8 +30,8 @@ best_of_best_NUMBER_OF_INIT_POINTS= 0
 def const(cd, xcp):
     return True if cd < datcom_high.base_cd and xcp < 0.6 and xcp > 0.53 else False
     
-seed_range = range(101,112) if args.grid else [104] 
-Init_range = [50,2,5,10,20] if args.grid else [5]
+seed_range = range(201,212) if args.grid else [104] 
+Init_range = [2,5,10,20] if args.grid else [5]
 
 for seed in seed_range:
     for NUMBER_OF_INIT_POINTS in Init_range:
@@ -71,10 +71,10 @@ for seed in seed_range:
                     self.model1 = model1
                     self.model2 = model2
                     self.model3 = model3
-                def condition_on_observations(self, X, Y, **kwargs):
-                    model1 = self.model1.condition_on_observations(X, Y)
-                    model2 = self.model2.condition_on_observations(X, Y)
-                    model3 = self.model3.condition_on_observations(X, Y)
+                def condition_on_observations(self, X, Y: torch.Tensor, **kwargs):
+                    model1 = self.model1.condition_on_observations(X, Y[:,:,:,0].unsqueeze(-1))
+                    model2 = self.model2.condition_on_observations(X, Y[:,:,:,1].unsqueeze(-1))
+                    model3 = self.model3.condition_on_observations(X, Y[:,:,:,2].unsqueeze(-1))
                     model = MultiOutputGP(model1, model2, model3)
                     return model
             # %% Fit the model
@@ -139,7 +139,48 @@ for seed in seed_range:
                 X_pending = None,
                 **kwargs,):
 
-                print(bounds)
+                obj_tf = get_objective_weights_transform(objective_weights)
+
+                def objective(samples: Tensor, X: Optional[Tensor] = None) -> Tensor:
+                    return obj_tf(samples)
+
+                con_tfs = get_outcome_constraint_transforms(outcome_constraints)
+                inf_cost = get_infeasible_cost(X=X_observed, model=model, objective=objective)
+                objective = ConstrainedMCObjective(
+                    objective=objective, constraints=con_tfs or [], infeasible_cost=inf_cost
+                )
+                curr_val_acqf = FixedFeatureAcquisitionFunction(
+                    acq_function=qSimpleRegret(model, objective=objective),
+                    d=9,
+                    columns=[8],
+                    values=[1],
+                )
+                
+                _, current_value = optimize_acqf(
+                    acq_function=curr_val_acqf,
+                    bounds=bounds[:,:-1],
+                    q=1,
+                    num_restarts=10 if not SMOKE_TEST else 1,
+                    raw_samples=1024 if not SMOKE_TEST else 2,
+                    options={"batch_limit": 10, "maxiter": 200},
+                )
+                    
+                return qMultiFidelityKnowledgeGradient(
+                    model=model,
+                    objective=objective,
+                    num_fantasies=128 if not SMOKE_TEST else 2,
+                    current_value=current_value,
+                    cost_aware_utility=cost_aware_utility,
+                    project=project,
+                )
+            # %% Get recommendation
+            def get_recom(
+                model,
+                objective_weights,
+                outcome_constraints = None,
+                X_observed = None,
+                X_pending = None,
+                **kwargs,):
 
                 obj_tf = get_objective_weights_transform(objective_weights)
 
@@ -159,30 +200,38 @@ for seed in seed_range:
                     values=[1],
                 )
                 
-                _, current_value = optimize_acqf(
+                final_recom, current_value = optimize_acqf(
                     acq_function=curr_val_acqf,
                     bounds=bounds[:,:-1],
                     q=1,
-                    num_restarts=10 if not SMOKE_TEST else 2,
-                    raw_samples=1024 if not SMOKE_TEST else 4,
+                    num_restarts=10 if not SMOKE_TEST else 1,
+                    raw_samples=1024 if not SMOKE_TEST else 2,
                     options={"batch_limit": 10, "maxiter": 200},
                 )
-                    
-                return qMultiFidelityKnowledgeGradient(
-                    model=model,
-                    objective=objective,
-                    num_fantasies=128 if not SMOKE_TEST else 2,
-                    current_value=current_value,
-                    cost_aware_utility=cost_aware_utility,
-                    project=project,
-                )
+                print(final_recom)
+                final_recom = curr_val_acqf._construct_X_full(final_recom).detach().cpu()
+                print(final_recom)
+                final_recom = {
+                    "XLE1":final_recom[0,0].item(),
+                    "XLE2":final_recom[0,1].item(),
+                    "CHORD1_1":final_recom[0,2].item(),
+                    "CHORD1_2":final_recom[0,3].item(),
+                    "CHORD2_1":final_recom[0,4].item(),
+                    "CHORD2_2":final_recom[0,5].item(),
+                    "SSPAN1_2":final_recom[0,6].item(),
+                    "SSPAN2_2":final_recom[0,7].item(),
+                    "fidelity":final_recom[0,8].item(),
+                }
+                print(final_recom)
+                obj_val = datcom_eval(final_recom)
+                return final_recom, obj_val
 
             # %% optimize acqf
             from botorch.optim.initializers import gen_one_shot_kg_initial_conditions
             from botorch.optim.optimize import optimize_acqf_mixed
 
-            NUM_RESTARTS = 10 if not SMOKE_TEST else 2
-            RAW_SAMPLES = 512 if not SMOKE_TEST else 4
+            NUM_RESTARTS = 10 if not SMOKE_TEST else 1
+            RAW_SAMPLES = 512 if not SMOKE_TEST else 2
 
 
             def optimize_mfkg_and_get_observation(
@@ -195,10 +244,11 @@ for seed in seed_range:
                 **optimizer_options,):
                 """Optimizes MFKG and returns a new candidate, observation, and cost."""
                 
-                print(bounds)
                 X_init = gen_one_shot_kg_initial_conditions(
                     acq_function = acq_function,
                     bounds=bounds,
+                    fixed_features=fixed_features,
+                    inequality_constraints=inequality_constraints,
                     q=n,
                     num_restarts=10,
                     raw_samples=512,
@@ -338,32 +388,21 @@ for seed in seed_range:
 
             result = [datcom_exp.arms_by_name[item].parameters for item in new_df['arm_name ']]
             new_df = new_df.join(pd.DataFrame({'parameters': result}))
-
-            constrain = CD_df['mean'] >= datcom_high.base_cd
-            constrain2 = XCP_df['mean'] < 0.53
-            constrain3 = XCP_df['mean'] > 0.6
-            not_eligible_arms = CD_df[constrain]['arm_name'].append(XCP_df[constrain2]['arm_name']).append(XCP_df[constrain3]['arm_name'])
-
-            constrained_objective_df = objective_df[~objective_df['arm_name'].isin(not_eligible_arms)].reset_index(drop=True)
-            idxmin = constrained_objective_df['mean'].idxmax()
-            arm_name, optimum_val = constrained_objective_df.iloc[idxmin,0], constrained_objective_df.iloc[idxmin,2]
-            optimum_param = datcom_exp.arms_by_name[arm_name].parameters
-
-            CDbest = CD_df[CD_df['arm_name']==arm_name]
-            XCPbest = XCP_df[XCP_df['arm_name']==arm_name]
-
             new_df.to_csv(f'results_constrained_multifidelity_{NUMBER_OF_INIT_POINTS}_{seed}.csv')
+
+            point, val = get_recom(model.model.model, objective_weights=torch.tensor([0,0,1], dtype=torch.float64).to(device), 
+                outcome_constraints=(torch.tensor([[1,0,0],[0,-1,0],[0,1,0]],dtype=torch.float64).to(device), 
+                torch.tensor([[0.479],[-0.53],[0.6]],dtype=torch.float64).to(device)), X_observed=model.model.Xs[0])
 
 
             print('Parameters: \n')
-            pprint.pprint(optimum_param)
-            print(f'Best CL/CD: {optimum_val}')
-            print(f'CD: {CDbest["mean"].array[0]}')
-            print(f'XCP: {XCPbest["mean"].array[0]}')
+            pprint.pprint(point)
+            print(f'Best result: {val}')
+            
+            optimum_val = val['objective'][0] if const(val['CD'][0], val['XCP'][0]) else 0
 
             if optimum_val > best_of_best_cl_cd:
                 best_of_best_cl_cd = optimum_val
-                best_of_best_iter = CDbest["trial_index"].array[0]
                 best_of_best_NUMBER_OF_INIT_POINTS = NUMBER_OF_INIT_POINTS
                 best_of_best_seed = seed
 

@@ -50,10 +50,14 @@ for seed in seed_range:
             print(datcom_high.base_cd)
             print(CD_ratio)
 
+            optimum_val2 = 0
+            optimum_param = None
+
             ROUND_FACTOR = 4
 
             import torch
-            device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
+            device = torch.device('cpu')
+            # device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
             # %% Model definition
             from botorch.models.gpytorch import GPyTorchModel, ModelListGPyTorchModel
             from gpytorch.distributions import MultivariateNormal, MultitaskMultivariateNormal
@@ -282,6 +286,11 @@ for seed in seed_range:
                     cl, cd, xcp, cl_cd = datcom_low.step(parameterization)
                 if const(cd, xcp):
                     print(f"VALID! CL_CD: {cl_cd}")
+                    global optimum_val2
+                    global optimum_param2
+                    if optimum_val2 < cl_cd:
+                        optimum_val2 = cl_cd
+                        optimum_param2 = parameterization
                 return {"objective": (cl_cd, 0.0), "CD": (cd, 0.0), "XCP": (xcp, 0.0)}
                 
             # %%
@@ -394,12 +403,15 @@ for seed in seed_range:
                 outcome_constraints=(torch.tensor([[1,0,0],[0,-1,0],[0,1,0]],dtype=torch.float64).to(device), 
                 torch.tensor([[0.479],[-0.53],[0.6]],dtype=torch.float64).to(device)), X_observed=model.model.Xs[0])
 
+            optimum_val = val['objective'][0] if const(val['CD'][0], val['XCP'][0]) else 0
+            if optimum_val2 > optimum_val:
+                optimum_val = optimum_val2
+                point = optimum_param2
 
+            
             print('Parameters: \n')
             pprint.pprint(point)
-            print(f'Best result: {val}')
-            
-            optimum_val = val['objective'][0] if const(val['CD'][0], val['XCP'][0]) else 0
+            print(f'Best result: {optimum_val}')
 
             if optimum_val > best_of_best_cl_cd:
                 best_of_best_cl_cd = optimum_val

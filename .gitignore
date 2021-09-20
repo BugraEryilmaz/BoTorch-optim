@@ -11,3 +11,4 @@ mlp2.py
 !Botorch-DATCOM/Results/csv/*.csv
 !DNN/models/
 !DNN/models/model_0_*_uniform_downsampled_point2binsize.pt
+!Multifidelity-BO/*204.csv
